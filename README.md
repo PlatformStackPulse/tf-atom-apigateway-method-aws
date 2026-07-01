@@ -3,9 +3,34 @@
 [![CI](https://github.com/PlatformStackPulse/tf-atom-apigateway-method-aws/actions/workflows/ci.yml/badge.svg)](https://github.com/PlatformStackPulse/tf-atom-apigateway-method-aws/actions/workflows/ci.yml)
 ![Terraform](https://img.shields.io/badge/terraform-%3E%3D1.6.0-blueviolet)
 
-## Purpose
+Terraform atom that defines an HTTP method (`aws_api_gateway_method`) on an existing API Gateway resource, with tf-label naming/tagging context and an `enabled` toggle.
 
-Terraform atom: AWS API Gateway Method - defines an HTTP method on a resource.
+## Features
+
+- Creates a single `aws_api_gateway_method` on a given REST API resource.
+- Supports any HTTP verb plus `ANY` (`GET`, `POST`, `PUT`, `DELETE`, `PATCH`, `OPTIONS`, `HEAD`, `ANY`), validated at plan time.
+- Configurable authorization (`NONE`, `AWS_IAM`, `CUSTOM`, `COGNITO_USER_POOLS`) with optional `authorizer_id`.
+- Input validation guards non-empty `rest_api_id` and `resource_id`.
+- tf-label context chaining for consistent naming/tagging across the fleet.
+- `enabled = false` provisions no resources (safe conditional creation).
+
+## Usage
+
+```hcl
+module "api_method" {
+  source = "git::https://github.com/PlatformStackPulse/tf-atom-apigateway-method-aws.git?ref=v1.0.0"
+
+  namespace = "eg"
+  stage     = "prod"
+  name      = "orders-post"
+
+  rest_api_id   = aws_api_gateway_rest_api.this.id
+  resource_id   = aws_api_gateway_resource.orders.id
+  http_method   = "POST"
+  authorization = "COGNITO_USER_POOLS"
+  authorizer_id = aws_api_gateway_authorizer.cognito.id
+}
+```
 
 ## Module Documentation
 
@@ -69,3 +94,17 @@ Terraform atom: AWS API Gateway Method - defines an HTTP method on a resource.
 | <a name="output_enabled"></a> [enabled](#output\_enabled) | Whether the module is enabled |
 | <a name="output_http_method"></a> [http\_method](#output\_http\_method) | HTTP method configured |
 <!-- END_TF_DOCS -->
+
+## Tests
+
+Unit tests live in `tests/unit/` and run against a mock AWS provider (no real
+AWS calls, no credentials required). They assert on plan-known values only —
+the tf-label context, input pass-throughs, and planned resource count.
+
+```bash
+terraform init -backend=false
+terraform test -test-directory=tests/unit
+```
+
+Integration tests (if present) live in `tests/integration/` and are run with
+`terraform test -test-directory=tests/integration`.
